@@ -1,0 +1,165 @@
+@baseUrl = http://localhost:3000/api/v1
+# Variáveis dinâmicas capturadas das respostas
+@authToken = {{login.response.body.token}}
+@createdOcorrenciaId = {{createOcorrencia.response.body.id}}
+@createdUserId = {{createUser.response.body.id}}
+
+### ============================================================================
+### 1. AUTENTICAÇÃO (Módulo Auth)
+### ============================================================================
+
+### 1.1 - Registrar o Primeiro Administrador (Bootstrap)
+# @name registerAdmin
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Administrador SIOB",
+  "email": "admin@bombeiros.pe.gov.br",
+  "matricula": "000001",
+  "password": "senhaForte123",
+  "profile": "ADMIN",
+  "cargo": "Coronel",
+  "status_usuario": "ATIVO"
+}
+
+### 1.2 - Fazer Login (Obter Token)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@bombeiros.pe.gov.br",
+  "password": "senhaForte123"
+}
+
+### ============================================================================
+### 2. GESTÃO DE USUÁRIOS (Módulo Users)
+### ============================================================================
+
+### 2.1 - Criar Novo Usuário (Operador)
+# @name createUser
+POST {{baseUrl}}/users
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "nome": "João Soldado",
+  "email": "joao.soldado@bombeiros.pe.gov.br",
+  "matricula": "102030",
+  "password": "senha123",
+  "cargo": "Soldado",
+  "tipo_perfil": "OPERADOR_CAMPO",
+  "status_usuario": "ATIVO"
+}
+
+### 2.2 - Listar Todos os Usuários (Com Filtros)
+GET {{baseUrl}}/users?cargo=Soldado&status_usuario=ATIVO
+Authorization: Bearer {{authToken}}
+
+### 2.3 - Atualizar Usuário (Mudar Cargo e Status)
+PUT {{baseUrl}}/users/{{createdUserId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "cargo": "Cabo",
+  "status_usuario": "INATIVO"
+}
+
+### 2.4 - Deletar Usuário
+DELETE {{baseUrl}}/users/{{createdUserId}}
+Authorization: Bearer {{authToken}}
+
+### ============================================================================
+### 3. OCORRÊNCIAS (Módulo Core) - Formulário Completo
+### ============================================================================
+
+### 3.1 - Criar Ocorrência (Todos os campos das imagens)
+# @name createOcorrencia
+POST {{baseUrl}}/ocorrencias
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tipo": "Incêndio",
+  "subtipo": "Em Edificação Comercial",
+  "prioridade": "ALTA",
+  "status": "EM_ANDAMENTO",
+  "data_acionamento": "2025-12-01T14:30:00Z",
+  "hora_acionamento": "2025-12-01T14:30:00Z",
+  
+  "ponto_base": "PB-Recife-Sul",
+  "ome_gb_secao": "GBI",
+  "viatura_tipo": "ABT",
+  "viatura_numero": "1234",
+  "nr_aviso": "OC-2025-999",
+  "data_ocorrencia": "2025-12-01T14:00:00Z",
+  
+  "cod_co": "123",
+  "cod_ciods": "456",
+  "cod_193": "789",
+  
+  "bairro": "Boa Viagem",
+  "municipio": "Recife",
+  "rua_avenida": "Av. Conselheiro Aguiar",
+  "numero_local": "1500",
+  "ponto_referencia": "Próximo ao Mercado",
+  "latitude": -8.1123,
+  "longitude": -34.9012,
+  
+  "veiculos_envolvidos": "Sim",
+  "historico_texto": "Incêndio de médias proporções no segundo andar. Equipe iniciou combate ofensivo.",
+  
+  "guarnicao_posto_grad": "Sargento",
+  "guarnicao_matricula": "000001",
+  "guarnicao_nome_guerra": "Sgt. Peixoto",
+  "guarnicao_componentes": ["000002", "000003", "000004"],
+  
+  "vitimas_total": 2,
+  "vitimas_feridas": 1,
+  "vitimas_ilesas": 1
+}
+
+### 3.2 - Listar Ocorrências (Filtro por Status)
+GET {{baseUrl}}/ocorrencias?status=EM_ANDAMENTO
+Authorization: Bearer {{authToken}}
+
+### 3.3 - Listar Ocorrências (Filtro por Bairro e Tipo)
+GET {{baseUrl}}/ocorrencias?bairro=Boa Viagem&tipo=Incêndio
+Authorization: Bearer {{authToken}}
+
+### 3.4 - Obter Detalhes da Ocorrência (Ver se salvou tudo)
+GET {{baseUrl}}/ocorrencias/{{createdOcorrenciaId}}
+Authorization: Bearer {{authToken}}
+
+### 3.5 - Atualizar Ocorrência (Mudar Status e Finalizar)
+PUT {{baseUrl}}/ocorrencias/{{createdOcorrenciaId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "status": "CONCLUIDA",
+  "data_fechamento": "2025-12-01T16:00:00Z",
+  "historico_texto": "Incêndio debelado. Rescaldo realizado com sucesso."
+}
+
+### 3.6 - Deletar Ocorrência
+DELETE {{baseUrl}}/ocorrencias/{{createdOcorrenciaId}}
+Authorization: Bearer {{authToken}}
+
+### ============================================================================
+### 4. DASHBOARD E RELATÓRIOS (Gestão)
+### ============================================================================
+
+### 4.1 - Obter KPIs do Dashboard (Gráficos)
+GET {{baseUrl}}/dashboard
+Authorization: Bearer {{authToken}}
+
+### 4.2 - Baixar Relatório em PDF
+GET {{baseUrl}}/relatorios?format=pdf
+Authorization: Bearer {{authToken}}
+
+### 4.3 - Baixar Relatório em CSV
+GET {{baseUrl}}/relatorios?format=csv
+Authorization: Bearer {{authToken}}
