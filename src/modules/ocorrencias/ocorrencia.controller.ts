@@ -3,7 +3,6 @@ import { OcorrenciaService } from "./ocorrencia.service";
 
 const service = new OcorrenciaService();
 
-
 interface AuthRequest extends Request {
   user?: { userId: string; profile: string };
 }
@@ -11,11 +10,7 @@ interface AuthRequest extends Request {
 export class OcorrenciaController {
   async create(req: AuthRequest, res: Response) {
     const userId = req.user?.userId; 
-    
-    if (!userId) {
-      return res.status(401).json({ error: "Usuário não identificado no token" });
-    }
-
+    if (!userId) return res.status(401).json({ error: "Usuário não identificado" });
     const result = await service.create(req.body, userId);
     return res.status(201).json(result);
   }
@@ -35,5 +30,11 @@ export class OcorrenciaController {
     const { id } = req.params;
     const result = await service.update(id, req.body);
     return res.json(result);
+  }
+
+  async delete(req: Request, res: Response) {
+    const { id } = req.params;
+    await service.delete(id);
+    return res.status(204).send();
   }
 }

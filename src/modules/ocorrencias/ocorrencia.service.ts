@@ -5,51 +5,42 @@ const prisma = new PrismaClient();
 
 export class OcorrenciaService {
   async create(data: any, userId: string) {
-    // Cria a ocorrência vinculando ao usuário logado
-    const novaOcorrencia = await prisma.ocorrencia.create({
-      data: {
-        ...data,
-        id_usuario_fk: userId,
-      },
-    });
-    return novaOcorrencia;
+    const payload = {
+      ...data,
+      data_acionamento: new Date(data.data_acionamento),
+      hora_acionamento: new Date(data.hora_acionamento),
+      data_ocorrencia: data.data_ocorrencia ? new Date(data.data_ocorrencia) : undefined,
+      id_usuario_fk: userId,
+    };
+    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+    return await prisma.ocorrencia.create({ data: payload });
   }
 
   async getAll(filters: any) {
     const where: any = {};
-    
-    // Filtros dinâmicos baseados na Query String
     if (filters.status) where.status = filters.status;
     if (filters.prioridade) where.prioridade = filters.prioridade;
     if (filters.tipo) where.tipo = filters.tipo;
     if (filters.bairro) where.bairro = filters.bairro;
-    
-    // Filtro de data (se fornecido)
-    if (filters.dataInicio) {
-      where.data_acionamento = { gte: filters.dataInicio };
-    }
+    if (filters.dataInicio) where.data_acionamento = { gte: new Date(filters.dataInicio) };
 
-    const ocorrencias = await prisma.ocorrencia.findMany({
+    return await prisma.ocorrencia.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: {
-        // Traz apenas nome e matricula de quem abriu
-        usuario: { select: { nome: true, matricula: true } }
-      }
+      include: { usuario: { select: { nome: true, matricula: true } } }
     });
-    return ocorrencias;
   }
 
   async getById(id: string) {
     const ocorrencia = await prisma.ocorrencia.findUnique({
       where: { id },
       include: {
-        vitimas: true,
+        vitimas_detalhe: true,
         midias: true,
         usuario: { select: { nome: true, cargo: true } }
       }
     });
-
     if (!ocorrencia) throw new NotFoundError("Ocorrência não encontrada");
     return ocorrencia;
   }
@@ -58,9 +49,15 @@ export class OcorrenciaService {
     const exists = await prisma.ocorrencia.findUnique({ where: { id } });
     if (!exists) throw new NotFoundError("Ocorrência não encontrada");
 
-    return await prisma.ocorrencia.update({
-      where: { id },
-      data,
-    });
+    if (data.data_fechamento) data.data_fechamento = new Date(data.data_fechamento);
+
+    return await prisma.ocorrencia.update({ where: { id }, data });
+  }
+
+  async delete(id: string) {
+    const exists = await prisma.ocorrencia.findUnique({ where: { id } });
+    if (!exists) throw new NotFoundError("Ocorrência não encontrada");
+
+    await prisma.ocorrencia.delete({ where: { id } });
   }
 }

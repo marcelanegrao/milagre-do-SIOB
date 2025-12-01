@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,7 +10,7 @@ datasource db {
 }
 
 // ===================================================================
-// 1. USUÁRIOS (Módulo Users/Auth)
+// 1. USUÁRIOS
 // ===================================================================
 
 model User {
@@ -17,20 +19,13 @@ model User {
   nome           String
   email          String   @unique
   senha_hash     String
-  
-  // Cargos (Soldado, Cabo, Tenente...)
   cargo          String?  
-  
-  // Status (Ativo, Inativo)
   status_usuario String   @default("ATIVO") 
-  
-  // Perfis de sistema (ADMIN, ANALISTA...)
   tipo_perfil    String   @default("ANALISTA")
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  // Relacionamentos
   ocorrencias    Ocorrencia[] @relation("UsuarioAbertura")
   uploads        Midia[]
   logs           AuditLog[]
@@ -39,7 +34,7 @@ model User {
 }
 
 // ===================================================================
-// 2. AUDITORIA (Módulo Shared)
+// 2. AUDITORIA
 // ===================================================================
 
 model AuditLog {
@@ -57,45 +52,84 @@ model AuditLog {
 }
 
 // ===================================================================
-// 3. OCORRÊNCIAS (Módulo Core)
+// 3. OCORRÊNCIAS (Corrigido: 'situacao' -> 'status')
 // ===================================================================
 
 model Ocorrencia {
   id               String   @id @default(uuid())
-  nr_aviso         String?  // Ex: OC-2025-001
   
+  // --- ETAPA 1: Formulário Básico ---
+  ponto_base       String?  
+  ome_gb_secao     String?  
+  viatura_tipo     String?  
+  viatura_numero   String?  
+  
+  nr_aviso         String?  
+  data_ocorrencia  DateTime? 
+  
+  cod_co           String?  
+  cod_ciods        String?  
+  cod_193          String?  
+  
+  tipo             String   
+  subtipo          String?  
+
+  // --- CORREÇÃO AQUI ---
+  status           String   @default("PENDENTE") // Era 'situacao', agora é 'status'
+  // ---------------------
+
+  prioridade       String   @default("MEDIA")    
+  
+  // --- LOCALIZAÇÃO ---
+  rua_avenida      String?  
+  numero_local     String?
+  bairro           String   
+  municipio        String?  @default("Recife")
+  codigo_local     String?  
+  ponto_referencia String?
+  
+  latitude         Float?   
+  longitude        Float?   
+
   // Datas
   data_acionamento DateTime
   hora_acionamento DateTime
   data_fechamento  DateTime?
 
-  // Classificação
-  tipo             String   // Ex: "Incêndio", "APH"
-  subtipo          String?  
-  prioridade       String   @default("MEDIA") 
-  status           String   @default("PENDENTE") 
+  // --- ETAPA 2: Detalhes ---
+  veiculos_envolvidos String? 
+  historico_texto     String? @db.Text 
   
-  // --- LOCALIZAÇÃO (Endereço + GPS) ---
-  bairro           String   
-  endereco         String?  
-  latitude         Float?   // <--- GPS Latitude
-  longitude        Float?   // <--- GPS Longitude
-  // ------------------------------------
+  guarnicao_posto_grad  String?
+  guarnicao_matricula   String?
+  guarnicao_nome_guerra String?
+  guarnicao_data        DateTime?
+  guarnicao_componentes Json? 
+
+  // --- ETAPA 3: Mídia ---
+  assinatura_digital    String? @db.LongText 
+  formularios_extras    Json?   
+  outro_relatorio_tipo  String? 
+  observacoes           String? @db.Text
   
-  observacoes      String?  @db.Text
-
-  // Quem abriu
-  id_usuario_fk    String
-  usuario          User     @relation("UsuarioAbertura", fields: [id_usuario_fk], references: [id])
-
-  // Detalhes
-  vitimas          Vitima[]
-  midias           Midia[]
+  // Vítimas
+  vitimas_total         Int     @default(0)
+  vitimas_feridas       Int     @default(0)
+  vitimas_fatais        Int     @default(0)
+  vitimas_ilesas        Int     @default(0)
+  vitimas_desaparecidas Int     @default(0)
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  @@index([status])
+  // Relacionamentos
+  id_usuario_fk    String
+  usuario          User     @relation("UsuarioAbertura", fields: [id_usuario_fk], references: [id])
+  
+  vitimas_detalhe  Vitima[]
+  midias           Midia[]
+
+  @@index([status]) // Index atualizado
   @@index([prioridade])
   @@index([bairro])
   @@index([tipo])
@@ -103,14 +137,14 @@ model Ocorrencia {
 }
 
 // ===================================================================
-// 4. DETALHES (Vítimas e Mídia)
+// 4. DETALHES
 // ===================================================================
 
 model Vitima {
   id               String     @id @default(uuid())
   nome             String?
   idade            Int?
-  situacao         String?    // Ex: "Consciente", "Óbito"
+  situacao         String?    
   id_ocorrencia_fk String
   ocorrencia       Ocorrencia @relation(fields: [id_ocorrencia_fk], references: [id], onDelete: Cascade)
 
@@ -120,8 +154,8 @@ model Vitima {
 
 model Midia {
   id               String     @id @default(uuid())
-  url              String     // Caminho do arquivo
-  tipo             String     // imagem/png, video/mp4
+  url              String     
+  tipo             String     
   id_ocorrencia_fk String
   ocorrencia       Ocorrencia @relation(fields: [id_ocorrencia_fk], references: [id], onDelete: Cascade)
   
