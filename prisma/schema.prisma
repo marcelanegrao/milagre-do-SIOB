@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================================================================
+// 1. USUÁRIOS (Módulo Users/Auth)
+// ===================================================================
+
+model User {
+  id             String   @id @default(uuid())
+  matricula      String   @unique
+  nome           String
+  email          String   @unique
+  senha_hash     String
+  
+  // Cargos (Soldado, Cabo, Tenente...)
+  cargo          String?  
+  
+  // Status (Ativo, Inativo)
+  status_usuario String   @default("ATIVO") 
+  
+  // Perfis de sistema (ADMIN, ANALISTA...)
+  tipo_perfil    String   @default("ANALISTA")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  ocorrencias    Ocorrencia[] @relation("UsuarioAbertura")
+  uploads        Midia[]
+  logs           AuditLog[]
+
+  @@map("usuarios")
+}
+
+// ===================================================================
+// 2. AUDITORIA (Módulo Shared)
+// ===================================================================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   
+  details   String?  @db.Text
+  ipAddress String?
+  timestamp DateTime @default(now())
+  
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+// ===================================================================
+// 3. OCORRÊNCIAS (Módulo Core)
+// ===================================================================
+
+model Ocorrencia {
+  id               String   @id @default(uuid())
+  nr_aviso         String?  // Ex: OC-2025-001
+  
+  // Datas
+  data_acionamento DateTime
+  hora_acionamento DateTime
+  data_fechamento  DateTime?
+
+  // Classificação
+  tipo             String   // Ex: "Incêndio", "APH"
+  subtipo          String?  
+  prioridade       String   @default("MEDIA") 
+  status           String   @default("PENDENTE") 
+  
+  // --- LOCALIZAÇÃO (Endereço + GPS) ---
+  bairro           String   
+  endereco         String?  
+  latitude         Float?   // <--- GPS Latitude
+  longitude        Float?   // <--- GPS Longitude
+  // ------------------------------------
+  
+  observacoes      String?  @db.Text
+
+  // Quem abriu
+  id_usuario_fk    String
+  usuario          User     @relation("UsuarioAbertura", fields: [id_usuario_fk], references: [id])
+
+  // Detalhes
+  vitimas          Vitima[]
+  midias           Midia[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([status])
+  @@index([prioridade])
+  @@index([bairro])
+  @@index([tipo])
+  @@map("ocorrencias")
+}
+
+// ===================================================================
+// 4. DETALHES (Vítimas e Mídia)
+// ===================================================================
+
+model Vitima {
+  id               String     @id @default(uuid())
+  nome             String?
+  idade            Int?
+  situacao         String?    // Ex: "Consciente", "Óbito"
+  id_ocorrencia_fk String
+  ocorrencia       Ocorrencia @relation(fields: [id_ocorrencia_fk], references: [id], onDelete: Cascade)
+
+  @@index([id_ocorrencia_fk])
+  @@map("vitimas")
+}
+
+model Midia {
+  id               String     @id @default(uuid())
+  url              String     // Caminho do arquivo
+  tipo             String     // imagem/png, video/mp4
+  id_ocorrencia_fk String
+  ocorrencia       Ocorrencia @relation(fields: [id_ocorrencia_fk], references: [id], onDelete: Cascade)
+  
+  id_usuario_fk    String
+  usuario          User       @relation(fields: [id_usuario_fk], references: [id])
+
+  createdAt        DateTime   @default(now())
+
+  @@index([id_ocorrencia_fk])
+  @@map("midias")
+}
